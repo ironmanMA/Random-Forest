@@ -14,7 +14,7 @@ If all records in X have identical values in all their attributes (this includes
 If all values in Y are the same, return a Leaf Node predicting this value as the output
 Else
     select m variables at random out of the M variables
-    For j = 1 .. m
+    For j = 1:m
         If j'th attribute is categorical
             IGj = IG(Y|Xj) (see Information Gain)            
         Else (j'th attribute is real-valued)
