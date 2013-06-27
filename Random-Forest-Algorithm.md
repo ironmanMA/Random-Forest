@@ -67,8 +67,8 @@ Random Forests are easy to use, the only 2 parameters a user of the technique ha
 Breinman's recommendations are to pick a large number of trees, as well as the square root of the number of variables for m.
  
 
-How to predict the label of a case
------------------------------------
+How to predict the label of a case 
+------------------------------------
 Classify(node,V)
     Input: node from the decision tree, if node.attribute = j then the split is done on the j'th attribute
 
