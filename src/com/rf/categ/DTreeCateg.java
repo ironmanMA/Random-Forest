@@ -8,7 +8,7 @@ import java.util.List;
 import java.util.Map.Entry;
 
 public class DTreeCateg {
-  
+	
 	/** Instead of checking each index we'll skip every INDEX_SKIP indices unless there's less than MIN_SIZE_TO_CHECK_EACH*/
 	private static final int INDEX_SKIP=3;
 	/** If there's less than MIN_SIZE_TO_CHECK_EACH points, we'll check each one */
@@ -57,7 +57,8 @@ public class DTreeCateg {
 		correct=0;
 		
 		root=CreateTree(train,treenum);
-		FlushData(root);
+		FlushData(root, treenum);
+		System.out.println("deleted data for tree:"+treenum);
 	}
 	
 	/**
@@ -106,7 +107,7 @@ public class DTreeCateg {
 	 */
 	private class TreeNode implements Cloneable{
 		public boolean isLeaf;
-		public ArrayList<TreeNode> ChildNode;
+		public ArrayList<TreeNode> ChildNode ;
 		public TreeNode left;
 		public TreeNode right;
 		public int splitAttributeM;
@@ -153,20 +154,46 @@ public class DTreeCateg {
 	 * @return he predicted class 
 	 * 
 	 */
-	public String Evaluate(ArrayList<String> record){
+	public String Evaluate(ArrayList<String> record, ArrayList<ArrayList<String>> tester){
 		TreeNode evalNode=root;
+		
 		while (true) {
 			if(evalNode.isLeaf)
 				return evalNode.Class;
 			if(evalNode.spiltonCateg){
 				// if its categorical
 				String nodeLable = record.get(evalNode.splitAttributeM);
+				boolean found = false;
 				for(TreeNode child:evalNode.ChildNode){
 					/*
 					 * Check for child with label same the data point
 					 */
-					if(nodeLable.equalsIgnoreCase(child.label)) //what if the category is not present at all
+					if(nodeLable.equalsIgnoreCase(child.label)){//what if the category is not present at all
 						evalNode = child;
+						found = true;
+						break;
+					}
+						
+				}
+				//accomodate the missing values
+				if(!found){
+					// find if supervised or non supervised
+					System.out.println("this lable not found :"+nodeLable);
+					if(evalNode.data.get(0).size()>record.size()){
+						/**
+						 * this is labels do not exist ... 
+						 * replicate this result RF.C times and then take this as each class and 
+						 * 
+						 */
+					}else{
+						/**
+						 * Labels exist 
+						 */
+						nodeLable = changeNodeLabel(evalNode.splitAttributeM,record,evalNode.data);
+						record.set(evalNode.splitAttributeM, nodeLable);
+						Evaluate(record, tester);
+					}
+					
 				}
 			}else{
 				//if its real-valued
@@ -196,6 +223,21 @@ public class DTreeCateg {
 			return null;
 		}
 	}
+	private String changeNodeLabel(int splitAttributeM, ArrayList<String> record,List<ArrayList<String>> data) {
+		// TODO Auto-generated method stub
+		// get the list of all the attributes where class is that
+		String label = record.get(record.size()-1);
+		ArrayList<String> ToFind = new ArrayList<String>();
+		for(ArrayList<String> DP : data){
+			if(DP.get(DP.size()-1).equalsIgnoreCase(label)){
+				ToFind.add(DP.get(splitAttributeM));
+			}
+		}
+		String Fill =null;
+		Fill = forest.ModeofList(ToFind);
+		return Fill;
+	}
+
 	/**
 	 * This is the crucial function in tree creation. 
 	 * 
@@ -681,17 +723,20 @@ public class DTreeCateg {
 	 * has been computed and can stand alone to classify incoming data.
 	 * 
 	 * @param node		initially, the root node of the tree
+	 * @param treenum 
 	 */
-	private void FlushData(TreeNode node){
+	private void FlushData(TreeNode node, int treenum){
 		node.data=null;
-		for(TreeNode TN:node.ChildNode){
-			if(TN != null)
-				FlushData(TN);
+		if(node.ChildNode!=null){
+			for(TreeNode TN : node.ChildNode){
+				if(TN != null)
+					FlushData(TN,treenum);
+			}
 		}
 		if (node.left != null)
-			FlushData(node.left);
+			FlushData(node.left,treenum);
 		if (node.right != null)
-			FlushData(node.right);
+			FlushData(node.right,treenum);
 	}
 
 }
