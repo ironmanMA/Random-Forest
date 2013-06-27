@@ -10,9 +10,9 @@ import java.util.concurrent.TimeUnit;
 
 
 public class RandomForestCateg {
-  
+	
 	/** the number of threads to use when generating the forest */
-	private static final int NUM_THREADS=Runtime.getRuntime().availableProcessors();
+	private static final int NUM_THREADS=4;//Runtime.getRuntime().availableProcessors();
 	//private static final int NUM_THREADS=2;
 	/** the number of categorical responses of the data (the classes, the "Y" values) - set this before beginning the forest creation */
 	public static int C;
@@ -81,9 +81,10 @@ public class RandomForestCateg {
 	 * Begins the random forest creation
 	 */
 	public void Start() {
-		// TODO Auto-generated method stubtreePool=Executors.newFixedThreadPool(NUM_THREADS);System.out.println("Number of threads started : "+NUM_THREADS);
+		// TODO Auto-generated method stub
+		treePool=Executors.newFixedThreadPool(NUM_THREADS);System.out.println("Number of threads started : "+NUM_THREADS);
 		for (int t=0;t<numTrees;t++){
-			treePool.execute(new CreateTree(data,this,t+1));//System.out.println("Starting tree: "+ (t+1));
+			treePool.execute(new CreateTree(data,this,t+1));System.out.println("Starting tree: "+ (t+1));
 		}treePool.shutdown();
 		try {	         
 			treePool.awaitTermination(Long.MAX_VALUE,TimeUnit.SECONDS); //effectively infinity
@@ -91,33 +92,36 @@ public class RandomForestCateg {
 	    	System.out.println("interrupted exception in Random Forests");
 	    }
 		
-		TestForest(trees,testdata);
+		TestForest(trees,data,testdata);
 		
 		System.out.print("Done in "+TimeElapsed(time_o));
 	}
 	/**
 	 * Testing the forest using the test-data 
 	 */
-	public void TestForest(ArrayList<DTreeCateg> trees,ArrayList<ArrayList<String>> test){
+	public void TestForest(ArrayList<DTreeCateg> trees,ArrayList<ArrayList<String>> train,ArrayList<ArrayList<String>> test){
 		ArrayList<String> TestResults = new ArrayList<String>();
 		int correctness=0;
 		System.out.println("Testing forest now ");
 		for(ArrayList<String> DataPoint: test){
-			String actualClass = DataPoint.get(DataPoint.size()-1);
 			ArrayList<String> Predictions = new ArrayList<String>();
 			for(DTreeCateg Tree : trees){
-				Predictions.add(Tree.Evaluate(DataPoint));
+				Predictions.add(Tree.Evaluate(DataPoint,test));
 			}
 			String FinalPrediction = ModeofList(Predictions);
 			TestResults.add(FinalPrediction);
-			if(FinalPrediction.equalsIgnoreCase(actualClass))
-				++correctness;
+			if(train.get(0).size()==test.get(0).size()){
+				String actualClass = DataPoint.get(DataPoint.size()-1);
+				if(FinalPrediction.equalsIgnoreCase(actualClass))
+					++correctness;
+			}
+			
 		}
 		
 		System.out.println("The Result of Predictions :-");
 		System.out.println("Total Cases : "+test.size());
 		System.out.println("Total CorrectPredicitions  : "+correctness);
-		System.out.println("Forest Accuracy :"+(correctness*100/test.size()));
+		System.out.println("Forest Accuracy :"+(correctness*100/test.size())+"%");		
 	}
 	/**
 	 * To find the final prediction of the trees
@@ -125,7 +129,7 @@ public class RandomForestCateg {
 	 * @param predictions
 	 * @return the mode of the list
 	 */
-	private String ModeofList(ArrayList<String> predictions) {
+	public String ModeofList(ArrayList<String> predictions) {
 		// TODO Auto-generated method stub
 		String MaxValue = null; int MaxCount = 0;
 		for(int i=0;i<predictions.size();i++){
@@ -164,9 +168,9 @@ public class RandomForestCateg {
 		 * Creates the decision tree
 		 */
 		public void run() {
-			//System.out.println("Creating a Dtree num : "+treenum+" ");
+			System.out.println("Creating a Dtree num : "+treenum+" ");
 			trees.add(new DTreeCateg(data,forest,treenum));
-			//System.out.println("tree added in RandomForest.AddTree.run()");
+			System.out.println("tree added in RandomForest)");
 			progress+=update;
 		}
 	}
