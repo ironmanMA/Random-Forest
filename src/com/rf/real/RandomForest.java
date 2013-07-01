@@ -6,11 +6,11 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 /**
- * Houses a Breiman Random Forest
+ * Random Forest
  * 
  */
 public class RandomForest {
-  
+	
 	/** the number of threads to use when generating the forest */
 	private static final int NUM_THREADS=Runtime.getRuntime().availableProcessors();
 	//private static final int NUM_THREADS=2;
@@ -22,7 +22,7 @@ public class RandomForest {
 	 * to be used and picked via random selection. "Ms" is the number of attributes in this
 	 * subset. The formula used to generate Ms was recommended on Breiman's website.
 	 */
-	public static int Ms;//recommended by Breiman: =(int)Math.round(Math.log(M)/Math.log(2)+1);
+	public static int Ms;
 	/** the collection of the forest's decision trees */
 	private ArrayList<DTree> trees;
 	/** the starting time when timing random forest creation */
@@ -37,6 +37,8 @@ public class RandomForest {
 	private int[] importances;
 	/** This maps from a data record to an array that records the classifications by the trees where it was a "left out" record (the indices are the class and the values are the counts) */
 	private HashMap<int[],int[]> estimateOOB;
+	/** This holds all of the predictions of trees in a Forest */
+	private ArrayList<ArrayList<Integer>> Prediction;
 	/** the total forest-wide error */
 	private double error;
 	/** the thread pool that controls the generation of the decision trees */
@@ -46,7 +48,7 @@ public class RandomForest {
 	/** the data on which produced random forest will be tested*/
 	private ArrayList<int[]> testdata;
 	/**
-	 * Initializes a Breiman random forest creation
+	 * Initializes a Random forest creation
 	 * 
 	 * @param numTrees			the number of trees in the forest
 	 * @param data				the training data used to generate the forest
@@ -66,15 +68,18 @@ public class RandomForest {
 		System.out.println("number of selected attributes "+((int)Math.round(Math.log(data.get(0).length-1)/Math.log(2)+1)));
 //		ArrayList<Datum> master=AssignClassesAndGetAllData(data);
 		estimateOOB=new HashMap<int[],int[]>(data.size());
+		Prediction = new ArrayList<ArrayList<Integer>>();
 	}
 	/**
 	 * Begins the random forest creation
 	 */
 	public void Start() {
-		
-		treePool=Executors.newFixedThreadPool(NUM_THREADS);System.out.println("Number of threads started : "+NUM_THREADS);
+		System.out.println("Number of threads started : "+NUM_THREADS);
+		System.out.print("Running...");
+		treePool=Executors.newFixedThreadPool(NUM_THREADS);
 		for (int t=0;t<numTrees;t++){
-			treePool.execute(new CreateTree(data,this,t+1));//System.out.println("Starting tree: "+ (t+1));
+			treePool.execute(new CreateTree(data,this,t+1));
+			System.out.print(".");
 		}treePool.shutdown();
 		try {	         
 			treePool.awaitTermination(Long.MAX_VALUE,TimeUnit.SECONDS); //effectively infinity
@@ -82,20 +87,56 @@ public class RandomForest {
 	    	System.out.println("interrupted exception in Random Forests");
 	    }
 //	    buildProgress.setValue(100); //just to make sure
-	    TestForest(trees,testdata);
+		System.out.println("");
+		System.out.println("Finished tree construction");
+		TestForest(trees,testdata);
 	    //CalcErrorRate();
 	    //CalcImportances();
-	    System.out.print("Done in "+TimeElapsed(time_o));
+	    System.out.println("Done in "+TimeElapsed(time_o));
 	}
 	
 	/**
 	 * 
 	 */
 	private void TestForest(ArrayList<DTree> collec_tree,ArrayList<int[]> test_data ) {
-		
+		int correstness = 0 ;int k=0;
+		ArrayList<Integer> ActualValues = new ArrayList<Integer>();
+		for(int[] rec:test_data){
+			ActualValues.add(rec[rec.length-1]);
+		}int treee=1;
 		for(DTree dt:collec_tree){
-			dt.CalcTreeErrorRate(test_data, 0);
+			dt.CalculateClasses(test_data,treee);
+			Prediction.add(dt.predictions);
+			//dt.CalcTreeErrorRate(test_data, treee);treee++;
 		}
+		for(int i = 0;i<test_data.size();i++){
+			ArrayList<Integer> Val = new ArrayList<Integer>();
+			for(int j =0;j<collec_tree.size();j++){
+				Val.add(Prediction.get(j).get(i));
+			}
+			int pred = ModeOf(Val);
+			if(pred == ActualValues.get(i)){
+				correstness=correstness+1;
+			}
+		}
+		System.out.println("Accuracy of Forest is : "+(100*correstness/test_data.size())+"%");
+	}
+	private int ModeOf(ArrayList<Integer> treePredict) {
+		// TODO Auto-generated method stub
+		int max=0,maxclass=-1;
+		for(int i=0; i<treePredict.size();i++){
+			int count = 0;
+			for(int j=0;j<treePredict.size();j++){
+				if(treePredict.get(j)==treePredict.get(i)){
+					count++;
+				}
+			if(count>max){
+				maxclass = treePredict.get(i);
+				max = count;
+			}
+			}
+		}
+		return maxclass;
 	}
 	/**
 	 * This calculates the forest-wide error rate. For each "left out" 
