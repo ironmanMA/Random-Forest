@@ -12,7 +12,7 @@ import java.util.List;
 public class DTree {
 
 
-  /** Instead of checking each index we'll skip every INDEX_SKIP indices unless there's less than MIN_SIZE_TO_CHECK_EACH*/
+	/** Instead of checking each index we'll skip every INDEX_SKIP indices unless there's less than MIN_SIZE_TO_CHECK_EACH*/
 	private static final int INDEX_SKIP=3;
 	/** If there's less than MIN_SIZE_TO_CHECK_EACH points, we'll check each one */
 	private static final int MIN_SIZE_TO_CHECK_EACH=10;
@@ -34,6 +34,8 @@ public class DTree {
 	private TreeNode root;
 	/** This is a pointer to the Random Forest this decision tree belongs to */
 	private RandomForest forest;
+	/** This keeps track of all the predictions done by this tree */
+	public ArrayList<Integer> predictions;
 
 	/**
 	 * This constructs a decision tree from a data matrix.
@@ -49,12 +51,13 @@ public class DTree {
 		this.forest=forest;
 		N=data.size();
 		importances=new int[RandomForest.M];
+		predictions = new ArrayList<Integer>();
 	
 		//System.out.println("Make a Dtree num : "+num+" with N:"+N+" M:"+RandomForest.M+" Ms:"+RandomForest.Ms);
 		
 		ArrayList<int[]> train=new ArrayList<int[]>(N); //data becomes the "bootstrap" - that's all it knows
 		ArrayList<int[]> test=new ArrayList<int[]>();
-		System.out.println("Creating tree No."+num);
+		//System.out.println("Creating tree No."+num);
 		BootStrapSample(data,train,test,num);//populates train and test using data
 		testN=test.size();
 		correct=0;	
@@ -71,6 +74,7 @@ public class DTree {
 	 */
 	private void CalcTreeVariableImportanceAndError(ArrayList<int[]> test,int nv) {
 		correct=CalcTreeErrorRate(test,nv);
+		CalculateClasses(test, nv);
 		
 		for (int m=0;m<RandomForest.M;m++){
 			ArrayList<int[]> data=RandomlyPermuteAttribute(CloneData(test),m);
@@ -101,14 +105,35 @@ public class DTree {
 		for (int[] record:test){
 			int Class=Evaluate(record);
 			forest.UpdateOOBEstimate(record,Class);
-			if (Class == GetClass(record))
+			int k = record[record.length-1];
+//			if (Evaluate(record) == GetClass(record))
+				if (Evaluate(record) == k)
 				correct++;
 		}
 		
 		double err=1-correct/((double)test.size());
 //		System.out.print("\n");
+		System.out.println("Number of correct  = "+correct+", out of :"+test.size());
 		System.out.println("Test-Data error rate of tree "+nu+"  is: "+(err*100)+" %");
+		
 		return correct;
+	}
+	/**
+	 * This method will get the classes and will return the updates
+	 * 
+	 */
+	public ArrayList<Integer> CalculateClasses(ArrayList<int[]> test,int nu){
+		ArrayList<Integer> corest = new ArrayList<Integer>();int k=0;int korect = 0;
+		for(int[] record : test){
+			int kls = Evaluate(record);
+			corest.add(kls);
+			int k1 = record[record.length-1];
+			if (kls==k1)
+				korect++;
+		}
+		predictions= corest;
+		return corest;
+		
 	}
 	/**
 	 * This will classify a new data record by using tree
@@ -346,6 +371,7 @@ public class DTree {
 //			PrintOutNode(parent.right,"    ");
 
 			//-------------------------------Step D
+				//------------Left Child
 			if (parent.left.data.size() == 1){
 				parent.left.isLeaf=true;
 				parent.left.Class=GetClass(parent.left.data.get(0));							
@@ -366,6 +392,7 @@ public class DTree {
 					parent.left.Class=Class;
 				}
 			}
+				//------------Right Child
 			if (parent.right.data.size() == 1){
 				parent.right.isLeaf=true;
 				parent.right.Class=GetClass(parent.right.data.get(0));								
@@ -409,7 +436,7 @@ public class DTree {
 	private int GetMajorityClass(List<int[]> data){
 		int[] counts=new int[RandomForest.C];
 		for (int[] record:data){
-			int Class=GetClass(record);
+			int Class=record[record.length-1];//GetClass(record);
 			counts[Class-1]++;
 		}
 		int index=-99;
