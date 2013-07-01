@@ -3,12 +3,12 @@ package com.rf.real;
 import java.util.ArrayList;
 
 public class MainRun {
-  
+	@SuppressWarnings("static-access")
 	public static void main(String args[]){
 
 		String traindata="/home/mohammad/Desktop/Material/Data.txt";
 		String testdata="/home/mohammad/Desktop/Material/Test.txt";
-		int numTrees=50;
+		int numTrees=100;
 		
 		DescribeTrees DT = new DescribeTrees(traindata);
 		ArrayList<int[]> Input=DT.CreateInput(traindata);int categ=0;
