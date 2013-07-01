@@ -33,7 +33,7 @@ public class DescribeTrees {
 					DataPoint[i]=Integer.parseInt(sCurrentLine.substring(Sp.get(i)+1, Sp.get(i+1)));
 				}DataInput.add(DataPoint);//for(int t=0;t<DataInput.get(0).length;t++){System.out.print(DataInput.get(0)[t]+",");}System.out.println("");
 			}
-		}System.out.println("Input generated");
+		}
 
 	} catch (IOException e) {
 		e.printStackTrace();
