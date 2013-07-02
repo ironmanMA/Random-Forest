@@ -1,6 +1,5 @@
 package com.rf.real.categ;
 
-import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -12,7 +11,7 @@ import java.util.concurrent.TimeUnit;
 public class RandomForestCateg {
 	
 	/** the number of threads to use when generating the forest */
-	private static final int NUM_THREADS=4;//Runtime.getRuntime().availableProcessors();
+	private static final int NUM_THREADS=Runtime.getRuntime().availableProcessors();
 	//private static final int NUM_THREADS=2;
 	/** the number of categorical responses of the data (the classes, the "Y" values) - set this before beginning the forest creation */
 	public static int C;
@@ -45,10 +44,16 @@ public class RandomForestCateg {
 	private ArrayList<ArrayList<String>> data;
 	/** the data on which produced random forest will be tested*/
 	private ArrayList<ArrayList<String>> testdata;
+	/** This holds all of the predictions of trees in a Forest */
+	private ArrayList<ArrayList<String>> Prediction;
 	/**
 	 * This hold the genres of attributes in the forest
+	 * 
+	 * 1 if categ
+	 * 0 if real
 	 */
-	public ArrayList<Character> Attributes;
+	public ArrayList<Integer> TrainAttributes;
+	public ArrayList<Integer> TestAttributes;
 	
 	/**
 	 * Initializes a Breiman random forest creation
@@ -57,7 +62,7 @@ public class RandomForestCateg {
 	 * @param data				the training data used to generate the forest
 	 * @param buildProgress		records the progress of the random forest creation
 	 */
-	public RandomForestCateg(int numTrees,int M,int Ms, ArrayList<ArrayList<String>> train,ArrayList<ArrayList<String>> test) {
+	public RandomForestCateg(int numTrees,int M,int Ms,int C, ArrayList<ArrayList<String>> train,ArrayList<ArrayList<String>> test) {
 		// TODO Auto-generated constructor stub
 		StartTimer();
 		this.numTrees=numTrees;
@@ -65,7 +70,9 @@ public class RandomForestCateg {
 		this.testdata=test;
 		this.M=M;
 		this.Ms=Ms;
-		this.Attributes=GetAttributes(data);
+		this.C=C;
+		this.TrainAttributes=GetAttributes(train);
+		this.TestAttributes=GetAttributes(test);
 		trees = new ArrayList<DTreeCateg>(numTrees);
 		update=100/((double)numTrees);
 		progress=0;
@@ -75,53 +82,87 @@ public class RandomForestCateg {
 		System.out.println("number of selected attributes "+Ms);
 		
 		estimateOOB=new HashMap<int[],int[]>(data.size());
-		
+		Prediction = new ArrayList<ArrayList<String>>();
 	}
 	/**
 	 * Begins the random forest creation
 	 */
 	public void Start() {
 		// TODO Auto-generated method stub
-		treePool=Executors.newFixedThreadPool(NUM_THREADS);System.out.println("Number of threads started : "+NUM_THREADS);
+		System.out.println("Number of threads started : "+NUM_THREADS);
+		System.out.println("Starting trees");
+		treePool=Executors.newFixedThreadPool(NUM_THREADS);
 		for (int t=0;t<numTrees;t++){
-			treePool.execute(new CreateTree(data,this,t+1));System.out.println("Starting tree: "+ (t+1));
+			treePool.execute(new CreateTree(data,this,t+1));
 		}treePool.shutdown();
 		try {	         
 			treePool.awaitTermination(Long.MAX_VALUE,TimeUnit.SECONDS); //effectively infinity
 	    } catch (InterruptedException ignored){
 	    	System.out.println("interrupted exception in Random Forests");
 	    }
-		
-		TestForest(trees,data,testdata);
+		if(data.get(0).size()>testdata.get(0).size())
+			TestForestNoLabel(trees,data,testdata);
+		else if(data.get(0).size()==testdata.get(0).size())
+			TestForest(trees,data,testdata);
+		else
+			System.out.println("Cannot test this data");
 		
 		System.out.print("Done in "+TimeElapsed(time_o));
 	}
 	/**
+	 * Predicting unlabeled data
+	 * 
+	 * @param trees2
+	 * @param data2
+	 * @param testdata2
+	 */
+	private void TestForestNoLabel(ArrayList<DTreeCateg> trees2,ArrayList<ArrayList<String>> data2,ArrayList<ArrayList<String>> testdata2) {
+		// TODO Auto-generated method stub
+		ArrayList<String> TestResult = new ArrayList<String>();
+		System.out.println("Predicting Labels now");
+		for(ArrayList<String> DP:testdata2){
+			ArrayList<String> Predict = new ArrayList<String>();
+			for(DTreeCateg DT:trees2){
+				Predict.add(DT.Evaluate(DP, testdata2));
+			}
+			TestResult.add(ModeofList(Predict));
+		}
+	}
+	/**
 	 * Testing the forest using the test-data 
+	 * 
+	 * @param DTreeCateg
+	 * @param TrainData
+	 * @param TestData
+	 * 
 	 */
 	public void TestForest(ArrayList<DTreeCateg> trees,ArrayList<ArrayList<String>> train,ArrayList<ArrayList<String>> test){
-		ArrayList<String> TestResults = new ArrayList<String>();
-		int correctness=0;
-		System.out.println("Testing forest now ");
-		for(ArrayList<String> DataPoint: test){
-			ArrayList<String> Predictions = new ArrayList<String>();
-			for(DTreeCateg Tree : trees){
-				Predictions.add(Tree.Evaluate(DataPoint,test));
-			}
-			String FinalPrediction = ModeofList(Predictions);
-			TestResults.add(FinalPrediction);
-			if(train.get(0).size()==test.get(0).size()){
-				String actualClass = DataPoint.get(DataPoint.size()-1);
-				if(FinalPrediction.equalsIgnoreCase(actualClass))
-					++correctness;
-			}
-			
-		}
+		int correctness=0;ArrayList<String> ActualValues = new ArrayList<String>();
 		
+		for(ArrayList<String> s:test){
+			ActualValues.add(s.get(s.size()-1));
+		}int treee=1;
+		System.out.println("Testing forest now ");
+		
+		for(DTreeCateg DTC : trees){
+			DTC.CalculateClasses(train, test, treee);treee++;
+			if(DTC.predictions!=null)
+			Prediction.add(DTC.predictions);
+		}
+		for(int i = 0;i<test.size();i++){
+			ArrayList<String> Val = new ArrayList<String>();
+			for(int j=0;j<trees.size();j++){
+				Val.add(Prediction.get(j).get(i));
+			}
+			String pred = ModeofList(Val);
+			if(pred.equalsIgnoreCase(ActualValues.get(i))){
+				correctness = correctness +1;
+			}
+		}
 		System.out.println("The Result of Predictions :-");
 		System.out.println("Total Cases : "+test.size());
 		System.out.println("Total CorrectPredicitions  : "+correctness);
-		System.out.println("Forest Accuracy :"+(correctness*100/test.size())+"%");		
+		System.out.println("Forest Accuracy :"+(correctness*100/test.size())+"%");				
 	}
 	/**
 	 * To find the final prediction of the trees
@@ -133,17 +174,16 @@ public class RandomForestCateg {
 		// TODO Auto-generated method stub
 		String MaxValue = null; int MaxCount = 0;
 		for(int i=0;i<predictions.size();i++){
-			int Count = 0;
-			for(int j =0;j<predictions.size();j++){
-				if(predictions.get(i).equalsIgnoreCase(predictions.get(j)))
-					++Count;
+			int count=0;
+			for(int j=0;j<predictions.size();j++){
+				if(predictions.get(j).trim().equalsIgnoreCase(predictions.get(i).trim()))
+					count++;
+				if(count>MaxCount){
+					MaxValue=predictions.get(i);
+					MaxCount=count;
+				}
 			}
-			if(Count>MaxCount){
-				MaxCount = Count;
-				MaxValue = predictions.get(i);
-			}
-		}
-		return MaxValue;
+		}return MaxValue;
 	}
 	/**
 	 * This class houses the machinery to generate one decision tree in a thread pool environment.
@@ -168,9 +208,7 @@ public class RandomForestCateg {
 		 * Creates the decision tree
 		 */
 		public void run() {
-			System.out.println("Creating a Dtree num : "+treenum+" ");
 			trees.add(new DTreeCateg(data,forest,treenum));
-			System.out.println("tree added in RandomForest)");
 			progress+=update;
 		}
 	}
@@ -210,14 +248,18 @@ public class RandomForestCateg {
 	/**
 	 * Of the attributes selected this function will record the genre of attributes  
 	 */
-	private ArrayList<Character> GetAttributes(List<ArrayList<String>> data){
-		ArrayList<Character> Attributes = new ArrayList<Character>();
-		ArrayList<String> DataPoint = data.get(0);
+	private ArrayList<Integer> GetAttributes(List<ArrayList<String>> data){
+		ArrayList<Integer> Attributes = new ArrayList<Integer>();int iter = 0;
+		ArrayList<String> DataPoint = data.get(iter);
+		if(DataPoint.contains("n/a") || DataPoint.contains("N/A")){
+			iter = iter +1;
+			DataPoint = data.get(iter);
+		}
 		for(int i =0;i<DataPoint.size();i++){
 			if(isAlphaNumeric(DataPoint.get(i)))
-				Attributes.add('c');
+				Attributes.add(1);
 			else
-				Attributes.add('r');
+				Attributes.add(0);
 		}
 		return Attributes;
 	}
