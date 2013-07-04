@@ -52,6 +52,7 @@ public class DTreeCateg2 {
 	 * 					(ie [ x1, x2, . . ., xM, Y ]).
 	 * @param forest	The random forest this decision tree belongs to
 	 */
+	 
 	public DTreeCateg2(ArrayList<ArrayList<String>> data,RandomForestCateg forest, int treenum) {
 		// TODO Auto-generated constructor stub
 		this.forest=forest;
