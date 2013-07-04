@@ -12,7 +12,7 @@ public class RandomForestCateg {
 	
 	/** the number of threads to use when generating the forest */
 	private static final int NUM_THREADS=Runtime.getRuntime().availableProcessors();
-	//private static final int NUM_THREADS=2;
+	//private static final int NUM_THREADS=1;
 	/** the number of categorical responses of the data (the classes, the "Y" values) - set this before beginning the forest creation */
 	public static int C;
 	/** the number of attributes in the data - set this before beginning the forest creation */
@@ -289,12 +289,12 @@ public class RandomForestCateg {
 	 * @return			the hr,min,s formatted string representation of the time
 	 */
 	private static String TimeElapsed(long timeinms){
-		int s=(int)(System.currentTimeMillis()-timeinms)/1000;
+		double s=(double)(System.currentTimeMillis()-timeinms)/1000;
 		int h=(int)Math.floor(s/((double)3600));
 		s-=(h*3600);
 		int m=(int)Math.floor(s/((double)60));
 		s-=(m*60);
-		return ""+h+"hr "+m+"m "+s+"s";
+		return ""+h+"hr "+m+"m "+s+"sec";
 	}
 	/**
 	 * Checks if attribute is categorical or not
