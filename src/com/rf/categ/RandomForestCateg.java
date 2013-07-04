@@ -24,6 +24,8 @@ public class RandomForestCateg {
 	public static int Ms;//recommended by Breiman: =(int)Math.round(Math.log(M)/Math.log(2)+1);
 	/** the collection of the forest's decision trees */
 	private ArrayList<DTreeCateg> trees;
+	/** the collection of the forest's decision trees */
+	private ArrayList<DTreeCateg2> trees2;
 	/** the starting time when timing random forest creation */
 	private long time_o;
 	/** the number of trees in this random tree */
@@ -74,6 +76,7 @@ public class RandomForestCateg {
 		this.TrainAttributes=GetAttributes(train);
 		this.TestAttributes=GetAttributes(test);
 		trees = new ArrayList<DTreeCateg>(numTrees);
+		trees2 = new ArrayList<DTreeCateg2>(numTrees);
 		update=100/((double)numTrees);
 		progress=0;
 		System.out.println("creating "+numTrees+" trees in a random Forest. . . ");
@@ -100,10 +103,15 @@ public class RandomForestCateg {
 	    } catch (InterruptedException ignored){
 	    	System.out.println("interrupted exception in Random Forests");
 	    }
-		if(data.get(0).size()>testdata.get(0).size())
+		if(data.get(0).size()>testdata.get(0).size()){
+			//TestForestNoLabel2(trees2, data, testdata);
 			TestForestNoLabel(trees,data,testdata);
-		else if(data.get(0).size()==testdata.get(0).size())
-			TestForest(trees,data,testdata);
+		}
+		else if(data.get(0).size()==testdata.get(0).size()){
+			TestForest2(trees2, data, testdata);
+			//TestForest(trees,data,testdata);
+		}
+			
 		else
 			System.out.println("Cannot test this data");
 		
@@ -145,6 +153,61 @@ public class RandomForestCateg {
 		System.out.println("Testing forest now ");
 		
 		for(DTreeCateg DTC : trees){
+			DTC.CalculateClasses(train, test, treee);treee++;
+			if(DTC.predictions!=null)
+			Prediction.add(DTC.predictions);
+		}
+		for(int i = 0;i<test.size();i++){
+			ArrayList<String> Val = new ArrayList<String>();
+			for(int j=0;j<trees.size();j++){
+				Val.add(Prediction.get(j).get(i));
+			}
+			String pred = ModeofList(Val);
+			if(pred.equalsIgnoreCase(ActualValues.get(i))){
+				correctness = correctness +1;
+			}
+		}
+		System.out.println("The Result of Predictions :-");
+		System.out.println("Total Cases : "+test.size());
+		System.out.println("Total CorrectPredicitions  : "+correctness);
+		System.out.println("Forest Accuracy :"+(correctness*100/test.size())+"%");				
+	}
+	/**
+	 * Predicting unlabeled data
+	 * 
+	 * @param trees22
+	 * @param data2
+	 * @param testdata2
+	 */
+	private void TestForestNoLabel2(ArrayList<DTreeCateg2> trees22,ArrayList<ArrayList<String>> data2,ArrayList<ArrayList<String>> testdata2) {
+		// TODO Auto-generated method stub
+		ArrayList<String> TestResult = new ArrayList<String>();
+		System.out.println("Predicting Labels now");
+		for(ArrayList<String> DP:testdata2){
+			ArrayList<String> Predict = new ArrayList<String>();
+			for(DTreeCateg2 DT:trees22){
+				Predict.add(DT.Evaluate(DP, testdata2));
+			}
+			TestResult.add(ModeofList(Predict));
+		}
+	}
+	/**
+	 * Testing the forest using the test-data 
+	 * 
+	 * @param DTreeCateg2
+	 * @param TrainData
+	 * @param TestData
+	 * 
+	 */
+	public void TestForest2(ArrayList<DTreeCateg2> trees,ArrayList<ArrayList<String>> train,ArrayList<ArrayList<String>> test){
+		int correctness=0;ArrayList<String> ActualValues = new ArrayList<String>();
+		
+		for(ArrayList<String> s:test){
+			ActualValues.add(s.get(s.size()-1));
+		}int treee=1;
+		System.out.println("Testing forest now ");
+		
+		for(DTreeCateg2 DTC : trees){
 			DTC.CalculateClasses(train, test, treee);treee++;
 			if(DTC.predictions!=null)
 			Prediction.add(DTC.predictions);
@@ -208,7 +271,8 @@ public class RandomForestCateg {
 		 * Creates the decision tree
 		 */
 		public void run() {
-			trees.add(new DTreeCateg(data,forest,treenum));
+			//trees.add(new DTreeCateg(data,forest,treenum));
+			trees2.add(new DTreeCateg2(data, forest, treenum));
 			progress+=update;
 		}
 	}
