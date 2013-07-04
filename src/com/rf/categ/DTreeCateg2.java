@@ -7,7 +7,7 @@ import java.util.HashMap;
 import java.util.Map.Entry;
 
 public class DTreeCateg2 {
-  
+	
 	/** Instead of checking each index we'll skip every INDEX_SKIP indices unless there's less than MIN_SIZE_TO_CHECK_EACH*/
 	private static final int INDEX_SKIP=3;
 	
@@ -150,6 +150,8 @@ public class DTreeCateg2 {
 			copy.splitAttributeM=splitAttributeM;
 			copy.Class=Class;
 			copy.splitValue=splitValue;
+			copy.spiltonCateg = spiltonCateg;
+			copy.label=label;
 			return copy;
 		}
 	}
@@ -190,11 +192,11 @@ public class DTreeCateg2 {
 					if(evalNode.spiltonCateg){
 					// if its categorical
 						String recordCategory = record.get(evalNode.splitAttributeM);
-						boolean found = false;
+						boolean found = false;int max=0;TreeNode Res = new TreeNode();
 						for(TreeNode child:evalNode.ChildNode){
 							// Check for child with label same the data point
 							if(recordCategory.equalsIgnoreCase(child.label)){//what if the category is not present at all
-								evalNode = child;System.out.println("going in child :"+evalNode.label);
+								evalNode = child;//System.out.println("going in child :"+evalNode.label);
 								found = true;
 								break;
 							}
@@ -202,11 +204,27 @@ public class DTreeCateg2 {
 						//accomodate the missing values
 						if(!found){
 							// find if supervised or non supervised
-							System.out.println("this lable not found :"+recordCategory);
+//							System.out.println("this lable not found :"+recordCategory+" child size is "+evalNode.ChildNode.size()+" parent label "+evalNode.label);
 							String ClassofRecord = GetClass(record);
 							//int this evalnode ka data...check for atrib with highest occurance of this class
-							evalNode = getChildtoTraverse(evalNode);
-							//write algo there...
+							
+							for(TreeNode child:evalNode.ChildNode){
+								int k=0;
+								if(child.data!=null){
+									for(ArrayList<String> SsS: child.data){
+										if(GetClass(SsS).equalsIgnoreCase(ClassofRecord))
+											k++;
+									}
+								}if(k>max){
+									max=k;
+									Res = child;
+								}
+							}
+							if(Res.label==null)
+								evalNode = evalNode.ChildNode.get(0);
+							else
+								evalNode = Res;
+//							System.out.println("alter found for "+recordCategory+", going in child :"+evalNode.label);
 						}
 					}else{
 						//if its real-valued
@@ -218,31 +236,55 @@ public class DTreeCateg2 {
 							else
 								evalNode=evalNode.ChildNode.get(1);
 //							evalNode=evalNode.left;
+//							System.out.println("going in child :"+evalNode.label);
 						}else{
 							if(evalNode.ChildNode.get(0).label.equalsIgnoreCase("Right"))
 								evalNode=evalNode.ChildNode.get(0);
 							else
 								evalNode=evalNode.ChildNode.get(1);
 //							evalNode=evalNode.right;
+//							System.out.println("going in child :"+evalNode.label);
 						}
 					}
 				}
 		}
 	}
-	
 	/**
-	 * gives the chilname where the record has to go...
-	 * @param eval
-	 * @return ChildNode
+	 * 
+	 * @param data
+	 * @param splitAttributeM
+	 * @param classofRecord
+	 * @return
 	 */
-	private TreeNode getChildtoTraverse(TreeNode eval) {
-		
+	private  TreeNode getChildtoTraverse(ArrayList<TreeNode> Chil,int splitAttributeM, String classofRecord) {
 		// TODO Auto-generated method stub
-		// get the list of all the attributes where class is that
-		
-		return null;
+		int max=0;TreeNode res=new TreeNode();
+		for(int i=0;i<Chil.size();i++){
+			if(Chil.get(i)!=null && Chil.get(i).data.size()>0){
+				int k=0;
+				for(ArrayList<String> SSS:Chil.get(i).data){
+					if(GetClass(SSS).equalsIgnoreCase(classofRecord))
+						k++;
+				}if(k>max){
+					max=k;
+					res = Chil.get(i);
+				}
+			}
+		}return res;
+//		for(TreeNode ch:Chil){
+//			if(ch!=null && ch.data.size()>0){
+//				int k=0;
+//				for(ArrayList<String> S:ch.data){
+//					if(GetClass(S).equalsIgnoreCase(classofRecord))
+//						k++;
+//				}if(k>max){
+//					max=k;
+//					res=ch;
+//				}
+//			}else
+//				System.out.println("data zero in child"+ch.label);
+//		}return res;
 	}
-
 	/**
 	 * This is the crucial function in tree creation. 
 	 * 
@@ -304,10 +346,10 @@ public class DTreeCateg2 {
 			}
 			
 			ArrayList<Integer> vars=GetVarsToInclude();//randomly selects Ms.Nos of attributes from M
-			for(int k:vars){
-				if(forest.TrainAttributes.get(k)==1)
-					System.out.println("Categ");
-			}
+//			for(int k:vars){
+//				if(forest.TrainAttributes.get(k)==1)
+//					System.out.println("Categ");
+//			}
 			DoubleWrap lowestE=new DoubleWrap(Double.MAX_VALUE);
 			
 			
@@ -432,6 +474,7 @@ public class DTreeCateg2 {
 				if(!uni_categ.contains(s.get(m).trim()))
 					uni_categ.add(s.get(m).trim());
 			}
+			
 			//data pertaining to each of the value
 			HashMap<String, ArrayList<ArrayList<String>>> ChildDataMap = new HashMap<String, ArrayList<ArrayList<String>>>();
 			for(String s:uni_categ){
@@ -462,6 +505,7 @@ public class DTreeCateg2 {
 					TreeNode Child = new TreeNode();
 					Child.data=entry.getValue();
 					Child.label=entry.getKey();
+					Children.add(Child);
 				}
 				parent.ChildNode=Children;
 			}
