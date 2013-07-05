@@ -52,7 +52,6 @@ public class DTreeCateg2 {
 	 * 					(ie [ x1, x2, . . ., xM, Y ]).
 	 * @param forest	The random forest this decision tree belongs to
 	 */
-	 
 	public DTreeCateg2(ArrayList<ArrayList<String>> data,RandomForestCateg forest, int treenum) {
 		// TODO Auto-generated constructor stub
 		this.forest=forest;
@@ -88,8 +87,6 @@ public class DTreeCateg2 {
 		for (int num:indices){
 			ArrayList<String> k = data.get(num);
 			train.add((ArrayList<String>) k.clone());
-//			train.add(data.get(num));
-//			train.add((data.get(num)).clone());
 			in.set(num,true);
 		}//System.out.println("created training-data for tree : "+numb);
 		for (int i=0;i<N;i++)
@@ -118,9 +115,10 @@ public class DTreeCateg2 {
 	 * @author TreeNode
 	 *
 	 */
-	private class TreeNode implements Cloneable{
+	public class TreeNode implements Cloneable{
 		public boolean isLeaf;
 		public ArrayList<TreeNode> ChildNode ;
+		public HashMap<String, String> Missingdata;
 //		public TreeNode left;
 //		public TreeNode right;
 		public int splitAttributeM;//which attribute its split on...
@@ -156,7 +154,12 @@ public class DTreeCateg2 {
 			return copy;
 		}
 	}
-	private class DoubleWrap{//hold the entropy
+	/**
+	 * hold the entropy
+	 * @author Mohammad
+	 *
+	 */
+	private class DoubleWrap{
 		public double d;
 		public DoubleWrap(double d){
 			this.d=d;
@@ -193,39 +196,27 @@ public class DTreeCateg2 {
 					if(evalNode.spiltonCateg){
 					// if its categorical
 						String recordCategory = record.get(evalNode.splitAttributeM);
-						boolean found = false;int max=0;TreeNode Res = new TreeNode();
+						boolean found=false;String Res = evalNode.Missingdata.get(GetClass(record));
+						
 						for(TreeNode child:evalNode.ChildNode){
+							
 							// Check for child with label same the data point
 							if(recordCategory.equalsIgnoreCase(child.label)){//what if the category is not present at all
-								evalNode = child;//System.out.println("going in child :"+evalNode.label);
+								evalNode = child;
 								found = true;
 								break;
 							}
-						}
-						//accomodate the missing values
-						if(!found){
-							// find if supervised or non supervised
-//							System.out.println("this lable not found :"+recordCategory+" child size is "+evalNode.ChildNode.size()+" parent label "+evalNode.label);
-							String ClassofRecord = GetClass(record);
-							//int this evalnode ka data...check for atrib with highest occurance of this class
-							
+						}if(!found){
 							for(TreeNode child:evalNode.ChildNode){
-								int k=0;
-								if(child.data!=null){
-									for(ArrayList<String> SsS: child.data){
-										if(GetClass(SsS).equalsIgnoreCase(ClassofRecord))
-											k++;
+								if(Res!=null){
+									if(Res.trim().equalsIgnoreCase(child.label)){
+										evalNode = child;
+										break;
 									}
-								}if(k>max){
-									max=k;
-									Res = child;
+								}else{
+									return "n/a";
 								}
 							}
-							if(Res.label==null)
-								evalNode = evalNode.ChildNode.get(0);
-							else
-								evalNode = Res;
-//							System.out.println("alter found for "+recordCategory+", going in child :"+evalNode.label);
 						}
 					}else{
 						//if its real-valued
@@ -272,19 +263,6 @@ public class DTreeCateg2 {
 				}
 			}
 		}return res;
-//		for(TreeNode ch:Chil){
-//			if(ch!=null && ch.data.size()>0){
-//				int k=0;
-//				for(ArrayList<String> S:ch.data){
-//					if(GetClass(S).equalsIgnoreCase(classofRecord))
-//						k++;
-//				}if(k>max){
-//					max=k;
-//					res=ch;
-//				}
-//			}else
-//				System.out.println("data zero in child"+ch.label);
-//		}return res;
 	}
 	/**
 	 * This is the crucial function in tree creation. 
@@ -470,10 +448,19 @@ public class DTreeCateg2 {
 			
 			//this is a categorical thing
 			// find out the distinct values in that attribute...from parent.data
-			ArrayList<String> uni_categ = new ArrayList<String>();
+			ArrayList<String> uni_categ = new ArrayList<String>(); //unique categories
+			ArrayList<String> uni_classes = new ArrayList<String>(); //unique classes
+			HashMap<String, String> ChildMissingMap = new HashMap<String, String>();// Class Vs Node-label
+			HashMap<String, Integer> ChilFreq = new HashMap<String, Integer>();//Node-Label Vs frequency
+			
 			for(ArrayList<String> s:parent.data){
-				if(!uni_categ.contains(s.get(m).trim()))
+				if(!uni_categ.contains(s.get(m).trim())){
 					uni_categ.add(s.get(m).trim());
+					ChilFreq.put(s.get(m), 0);
+				}
+					
+				if(!uni_classes.contains(GetClass(s)))
+					uni_classes.add(GetClass(s));
 			}
 			
 			//data pertaining to each of the value
@@ -486,6 +473,23 @@ public class DTreeCateg2 {
 				}
 				ChildDataMap.put(s, child_data);
 			}
+			
+			//can merge the above two
+			//Adding missing-data-suits
+			for(String S1:uni_classes){
+				int max=0;String Resul = null;
+				for(ArrayList<String> S2:parent.data){
+					if(GetClass(S2).equalsIgnoreCase(S1)){
+						if(ChilFreq.containsKey(S2.get(m)))
+							ChilFreq.put(S2.get(m), ChilFreq.get(S2.get(m))+1);
+					}
+					if(ChilFreq.get(S2.get(m))>max){
+						max=ChilFreq.get(S2.get(m));
+						Resul = S2.get(m);
+					}
+				}
+				ChildMissingMap.put(S1, Resul);//System.out.println("Mapping Class: "+S1+" to attribute: "+Resul);
+			}
 			//calculating entropy
 			for(Entry<String,ArrayList<ArrayList<String>>> entry:ChildDataMap.entrySet()){
 				entropy+=CalEntropy(getClassProbs(entry.getValue()))*entry.getValue().size();
@@ -497,6 +501,7 @@ public class DTreeCateg2 {
 				parent.splitAttributeM=m;
 				parent.spiltonCateg = true;
 				parent.splitValue=parent.data.get(n).get(m);
+				parent.Missingdata=ChildMissingMap;
 				/**
 				 * Adding Data to Child
 				 * 
