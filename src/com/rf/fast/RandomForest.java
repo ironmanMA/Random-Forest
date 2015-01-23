@@ -138,11 +138,11 @@ public class RandomForest {
 			if(withThreads){
 				System.out.println("Testing Forest for Labels with threads");
 				ArrayList<DecisionTree> Tree3 = (ArrayList<DecisionTree>) trees2.clone();
-				TestForestForLabel(Tree3, data, testdata);
+				TestForestForLabelWT(Tree3, data, testdata);
 			}else{
 				System.out.println("Testing Forest for Labels without threads");
 				ArrayList<DecisionTree> Tree4 = (ArrayList<DecisionTree>) trees2.clone();
-				TestForestForLabelWT(Tree4, data, testdata);
+				TestForestForLabel(Tree4, data, testdata);
 			}
 		}
 	}
